@@ -103,6 +103,13 @@ def mix(*tracks):
     return out
 
 
+def throw_freq(t):
+    """"viiiiiii" -- avval tez ko'tariladi, so'ng balandda cho'ziladi."""
+    if t < 0.5:
+        return 480 + (1150 - 480) * (t / 0.5)
+    return 1150 + 90 * ((t - 0.5) / 0.5)
+
+
 def save(name, samples):
     frames = bytearray()
     for sample in samples:
@@ -129,10 +136,11 @@ def main():
         "cheer": (sweep(660, 660, 0.075, vol=0.26)
                   + sweep(880, 880, 0.075, vol=0.26)
                   + sweep(1170, 1170, 0.11, vol=0.26)),
-        # uchirib yuborilganda -- uzunroq "vushsh" (swoosh + ko'tariluvchi ohang)
-        "throw": mix(whoosh(0.42, vol=1.5),
-                     tone(lambda t: 320 + 620 * t, 0.42,
-                          vol=0.11, harmonics=(1.0, 0.3))),
+        # uchirib yuborilganda -- cho'zilgan "viiiiiii" (yuqoriga ko'tariluvchi ohang)
+        "throw": tone(throw_freq, 0.55, vol=0.28,
+                      harmonics=(1.0, 0.45, 0.2, 0.1),
+                      vibrato=0.015, vib_rate=13,
+                      env=lambda i, n: envelope(i, n, attack=0.02, release=0.22)),
         # yerga urilganda -- past "tuk"
         "land": mix(sweep(180, 70, 0.12, vol=0.42, release=0.6),
                     noise(0.05, vol=0.18)),
