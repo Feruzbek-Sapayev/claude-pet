@@ -1,5 +1,8 @@
 # Claude desktop pet
 
+> Windows va macOS. macOS uchun alohida yo'riqnoma:
+> [macOS'da ishlatish](#macosda-ishlatish).
+
 Ekran bo'ylab yuradigan Claude Code maskoti. Claude Code'ning holatiga qarab
 o'zini tutadi: ishlayotganda harakatlanadi va nima qilayotganini aytadi,
 bo'sh turganda gaplashadi, uzoq jim qolsa uxlaydi. Harakatlarida — sakrash,
@@ -7,10 +10,10 @@ uloqtirilish, bosilish — ovoz ham chiqaradi.
 
 ## O'rnatish
 
-**Kerak bo'ladi:** Windows va Python 3.8+ ([python.org](https://python.org),
-o'rnatishda «Add Python to PATH» katagini belgilang). Boshqa hech narsa kerak
-emas — kadrlar va ovozlar tayyor holda keladi (ovoz Windows'ning o'z
-`winsound` moduli bilan chalinadi, qo'shimcha kutubxona shart emas).
+**Kerak bo'ladi:** Windows yoki macOS va Python 3.8+
+([python.org](https://python.org); Windows'da o'rnatishda «Add Python to PATH»
+katagini belgilang). Boshqa hech narsa kerak emas — kadrlar va ovozlar tayyor
+holda keladi, qo'shimcha kutubxona shart emas.
 
 **GitHub'dan:**
 
@@ -19,35 +22,41 @@ git clone https://github.com/Feruzbek-Sapayev/claude-pet.git
 cd claude-pet
 ```
 
-so'ng **`install.bat`** ni ikki marta bosing va Claude Code'ni qayta ishga
-tushiring.
+so'ng o'rnatgichni ikki marta bosing va Claude Code'ni qayta ishga tushiring:
 
-**Yoki ZIP orqali:**
+| Tizim | Fayl |
+|---|---|
+| Windows | **`install.bat`** |
+| macOS | **`install.command`** |
 
-1. ZIP faylni istalgan papkaga yeching (masalan `C:\claude-pet`)
-2. **`install.bat`** ni ikki marta bosing
-3. Claude Code'ni qayta ishga tushiring
+**Yoki ZIP orqali:** faylni istalgan papkaga yeching (masalan
+`C:\claude-pet` yoki `~/claude-pet`), o'rnatgichni bosing, Claude Code'ni
+qayta ishga tushiring.
 
 Tamom. O'rnatgich uch ishni qiladi: Claude Code hooklarini qo'shadi, pet'ni
-Windows avtostartiga yozadi va uni ishga tushiradi.
+tizim avtostartiga yozadi va uni ishga tushiradi.
 
-> Papkani keyinchalik ko'chirsangiz, yangi joyida `install.bat` ni qaytadan
-> ishga tushiring — yo'llar yangilanadi. Qayta o'rnatish xavfsiz: yozuvlar
+> Papkani keyinchalik ko'chirsangiz, yangi joyida o'rnatgichni qaytadan ishga
+> tushiring — yo'llar yangilanadi. Qayta o'rnatish xavfsiz: yozuvlar
 > takrorlanmaydi, yangilanadi.
+
+> macOS'da birinchi marta ochganda Gatekeeper ogohlantirishi chiqishi mumkin.
+> `install.command` ga o'ng tugma → **Open** → **Open** deng, yoki terminalda
+> `python3 install.py` ni ishlating.
 
 ### Nimalarga tegadi
 
-| Nima | Qayerda |
-|---|---|
-| Hooklar | `~/.claude/settings.json` — mavjud sozlamalaringiz va boshqa hooklaringiz saqlanadi, avval `settings.json.bak` zaxirasi olinadi |
-| Avtostart | Startup papkasidagi `claude-pet.vbs` |
-| Vaqtinchalik holat | `%TEMP%\claude-pet\` |
+| Nima | Windows | macOS |
+|---|---|---|
+| Hooklar | `~/.claude/settings.json` — mavjud sozlamalaringiz va boshqa hooklaringiz saqlanadi, avval `settings.json.bak` zaxirasi olinadi | shu yerda |
+| Avtostart | Startup papkasidagi `claude-pet.vbs` | `~/Library/LaunchAgents/com.claude-pet.plist` |
+| Vaqtinchalik holat | `%TEMP%\claude-pet\` | `~/Library/Caches/claude-pet/` |
 
 ### O'chirish
 
-**`uninstall.bat`** ni ishga tushiring — u faqat o'zi qo'shgan hooklarni va
-avtostartni olib tashlaydi, boshqa sozlamalaringizga tegmaydi. So'ng papkani
-o'chirsangiz bo'ladi.
+**`uninstall.bat`** (macOS'da **`uninstall.command`**) ni ishga tushiring — u
+faqat o'zi qo'shgan hooklarni va avtostartni olib tashlaydi, boshqa
+sozlamalaringizga tegmaydi. So'ng papkani o'chirsangiz bo'ladi.
 
 ## Do'stingizga berish
 
@@ -61,7 +70,7 @@ paydo bo'ladi. O'shani yuboring, ular yechib `install.bat` ni bossa bo'ldi.
 | `working` | siz Claude'ga xabar yuborgandan keyin | 3–8 soniyada almashadigan turli faoliyatlar (pastga qarang), boshi tepasida «Pishiryapman...» kabi yozuv |
 | `waiting` | Claude sizdan javob/ruxsat kutayotganda | `WAIT_SEC` soniya sakraydi va «Javobingizni kutyapman» deydi, keyin `idle` ga o'tadi |
 | `idle` | Claude javobini tugatganda | tik turadi, ko'z qisadi, sekin sayr qiladi va o'zicha gapirib turadi |
-| uyqu | `SLEEP_AFTER` soniya bo'sh tursa | ko'zini yumib «z z z» deb uxlaydi |
+| uyqu | `SLEEP_AFTER` soniya bo'sh tursa | yonboshlab yotadi, tepasidan «Z» lar ko'tarilib turadi |
 
 ## Ish paytidagi faoliyatlar
 
@@ -74,12 +83,66 @@ bir necha marta takrorlangani uchun tez-tez tushadi.
 | `walk` | ~34% | ekran bo'ylab yuradi, qadam bilan tebranadi |
 | `peck` | ~27% | boshini egib-ko'tarib «cho'qiydi» — kod terayotgandek |
 | `think` | ~17% | sekin u yon-bu yon chayqaladi |
-| `wave` | ~14% | qo'llarini ko'tarib-tushiradi |
+| `wave` | ~14% | qo'l silkitadi (pastga qarang) |
 | `cheer` | ~10% | qo'lini ko'tarib joyida sakraydi |
+
+### Qo'l silkitish
+
+`wave` faoliyati boshlanganda uslub `WAVE_STYLES` dan tasodifiy tanlanadi:
+
+| Uslub | Nima qiladi |
+|---|---|
+| `wave` | ikkala qo'lini birga ko'taradi |
+| `wave_l` | faqat chap qo'lini |
+| `wave_r` | faqat o'ng qo'lini |
+| `alt` | navbat bilan goh u, goh bu qo'lini |
+
+Kadrlarni `make_sprites.py` dagi `shift_arm_tips(base, dy, side)` yasaydi —
+`side` "l", "r" yoki "lr" bo'lishi mumkin. Yangi qo'l holati kerak bo'lsa
+(masalan boshqa balandlikda) shu funksiyani chaqirib kadr qo'shing, so'ng
+uni `pet.py` dagi kadrlar ro'yxatiga yozing.
 
 Nisbatni o'zgartirish uchun `ACTIVITIES` ro'yxatidagi takrorlarni ko'paytiring
 yoki kamaytiring. Masalan `peck` ni ikki barobar tez-tez chiqarish uchun uni
 ro'yxatga yana ikki marta qo'shing.
+
+## Uyqu
+
+`SLEEP_AFTER` soniya bo'sh tursa pet yonboshlab yotadi: keng qo'l bo'lagi
+polda, tana uning ustida, oyoqlari tepada yig'ilgan, ko'zi ikki qisqa chiziq.
+Kadr `make_sprites.py` dagi `sleeping()` da yasaladi — gavdaning pastki yarmi
+(`SLEEP_ROWS`) ag'dariladi, kalla ko'rinmaydi.
+
+Tepasidan «Z» harflari ko'tarilib turadi: pastda kichik va yorug', yuqoriga
+chiqqan sari kattalashib so'nadi, yon tomonga yoy chizib suriladi. Ular
+maskotning o'z oynasiga sig'magani uchun alohida shaffof oynada chiziladi
+(`Zzz` klassi).
+
+Harf shrift bilan emas, `Z_GLYPH` piksel naqshidan chiziladi — Windows
+shriftni silliqlaganda chekkalari shaffof kalit rangga aralashib, magenta
+hoshiya qoldiradi. Har bosqich uchun rasm dastur ishga tushganda bir marta
+tayyorlanadi.
+
+Sozlash (`pet.py`): `ZZZ_COUNT`, `ZZZ_RISE`, `ZZZ_PERIOD`, `ZZZ_DRIFT`,
+`ZZZ_SCALE`, `ZZZ_LIFT`, `ZZZ_NEAR`/`ZZZ_FAR`.
+
+## Kulish
+
+Xursand paytlarda pet ko'zini `^^` shakliga o'zgartiradi. Bu quyidagi
+holatlarda chiqadi:
+
+| Qachon | Qancha davom etadi |
+|---|---|
+| ustiga bosilganda (bir qo'lini ko'tarib) | `HAPPY_SEC` soniya |
+| ish paytidagi `cheer` (sakrab quvonish) | faoliyat oxirigacha |
+| ish paytidagi `wave` (qo'l silkitish, har uch uslubi ham) | faoliyat oxirigacha |
+| bo'sh turganda gap aytayotganda | gap ekranda turgan vaqt |
+
+Kulgan nusxasi bor kadrlar `pet.py` dagi **`HAPPY_FRAMES`** ro'yxatida
+(`stand`, `wave`, `cheer`) — `make_sprites.py` shularning `happy_` prefiksli
+juftini yasaydi. Boshqa kadrga ham kulgan nusxa kerak bo'lsa, ikkala joyga
+qo'shing. Kulgan ko'zning kengligi `make_sprites.py` dagi `SMILE_WIDEN`
+bilan boshqariladi.
 
 ## Bo'sh turgandagi gaplar
 
@@ -98,6 +161,30 @@ Gaplar uch manbadan yig'iladi (`pet.py` boshida):
 
 Yangi gap qo'shish uchun shu ro'yxatlarga qator qo'shing, xolos.
 
+## Gap buluti
+
+Yozuv bulut shaklidagi ramkada chiqadi: chetlari to'lqinli, pastida esa
+maskot tomon tushadigan ikkita kichrayuvchi doira.
+
+Bulut o'zak to'rtburchak va uning to'rt chekkasi bo'ylab terilgan doiralardan
+yig'iladi (`Bubble._parts`). Radiuslar `BUMPS` ro'yxati bo'yicha navbatlashadi
+— shundan kontur to'lqinlanib chiqadi; har chekka navbatning turli joyidan
+boshlanadi, shuning uchun naqsh takrorlanmaydi.
+
+O'zak matndan `MARGIN` qadar kengroq. Buni kamaytirmang: qo'shni doiralar
+tutashgan joyda kontur ichkariga botadi, o'sha bo'shliq bo'lmasa harflarning
+dumi (`y`, `p`) chiziqqa tegib ketadi.
+
+Ichki yoylarni yashirish uchun ikki qatlam chiziladi: avval hamma bo'lak
+hoshiyasi bilan, so'ng har biri chiziq qalinligicha ichkariga siqib qayta
+bo'yaladi. Shu sabab qo'shni doiralar bir-birini yaxshigina qoplashi kerak —
+`STEP` ni kattalashtirsangiz `BUMPS` ni ham oshiring, aks holda kontur
+uzilib qoladi.
+
+Sozlash: `BUMPS`, `STEP`, `MARGIN`, `TAIL_R`, `LINE` — hammasi `Bubble`
+klassining boshida (`PAD_X`/`PAD_Y` shulardan hisoblanadi). Ranglar:
+`BUBBLE_BG`, `BUBBLE_LINE`, `BUBBLE_TEXT`.
+
 ## Gap pufagidagi yozuv
 
 Fe'llar `~/.claude/settings.json` dagi **`spinnerVerbs.verbs`** ro'yxatidan olinadi —
@@ -111,8 +198,8 @@ lekin uslub va manba bitta.
 ## Bir nechta monitor
 
 Pet barcha monitorlar bo'ylab yuradi — chekkaga yetganda to'xtamay, qo'shni
-ekranga o'tib ketadi. Monitorlar `EnumDisplayMonitors` orqali aniqlanadi,
-har birining **o'z vazifalar paneli** hisobga olinadi.
+ekranga o'tib ketadi. Har bir monitorning **o'z paneli** (Windows'da vazifalar
+paneli, macOS'da menyu paneli va Dock) hisobga olinadi.
 
 - Monitorlar balandligi har xil bo'lsa, pet polni `GROUND_EASE` px/tik tezlikda
   yumshoq moslashtiradi — zinapoyaga chiqqandek ko'rinadi
@@ -121,14 +208,33 @@ har birining **o'z vazifalar paneli** hisobga olinadi.
 - Monitor ulansa yoki uzilsa, ro'yxat har 10 soniyada yangilanadi — dasturni
   qayta ishga tushirish shart emas
 
+Ekranlar qanday aniqlanadi:
+
+| Tizim | Usul |
+|---|---|
+| Windows | `EnumDisplayMonitors` — hamma ekran, qo'shimcha hech narsa kerak emas |
+| macOS | `NSScreen.visibleFrame` — **pyobjc** o'rnatilgan bo'lsa hamma ekran |
+| macOS (pyobjc'siz) | faqat asosiy ekran |
+
+macOS'da ikkinchi monitor kerak bo'lsa:
+
+```bash
+pip3 install pyobjc-framework-Cocoa
+```
+
+so'ng pet'ni qayta ishga tushiring. Bu ixtiyoriy — usiz ham pet ishlaydi,
+faqat asosiy ekrandan chiqmaydi.
+
 ## Boshqarish
 
 - **Sudrash va uloqtirish** — chap tugma bilan tortib qo'yib yuboring: pet
   tezlikni saqlab uchadi, polga tushib bir-ikki sakraydi va tinchiydi.
   Devorlardan va shiftdan qaytadi, qo'shni monitorga uchib o'tishi mumkin
-- **Bosish** — ustiga bir marta bosing, sapchib «Nima gap?» deydi
-- **O'ng tugma** — «Yerga qaytar», «Ovoz» (yoqish/o'chirish) yoki «Chiqish»
-- **Qayta ishga tushirish** — `start-pet.bat`
+- **Bosish** — ustiga bir marta bosing, bir qo'lini ko'tarib (qaysi biri —
+  tasodifiy) sapchiydi va «Nima gap?» deydi
+- **O'ng tugma** — «Yerga qaytar», «Ovoz» (yoqish/o'chirish) yoki «Chiqish».
+  macOS'da trackpad'da ikki barmoq bilan bosing yoki `Control` ushlab bosing
+- **Qayta ishga tushirish** — `start-pet.bat` (macOS: `start-pet.command`)
 
 ## Ovozlar
 
@@ -163,12 +269,17 @@ Bir vaqtda faqat bitta nusxa ishlaydi (50573-port qulf sifatida band qilinadi).
 ## Fayllar
 
 ```
-install.bat       o'rnatish (do'stingiz shuni bosadi)
-uninstall.bat     o'chirish
-package.bat       tarqatish uchun ZIP yasaydi
-start-pet.bat     ishga tushirgich -- Python'ni o'zi topadi
+install.bat       o'rnatish (do'stingiz shuni bosadi)      -- Windows
+uninstall.bat     o'chirish                                -- Windows
+package.bat       tarqatish uchun ZIP yasaydi              -- Windows
+start-pet.bat     ishga tushirgich -- Python'ni o'zi topadi -- Windows
+
+install.command   o'rnatish                                -- macOS
+uninstall.command o'chirish                                -- macOS
+start-pet.command ishga tushirgich                         -- macOS
 
 pet.py            asosiy dastur (faqat standart kutubxona -- Pillow kerak emas)
+paths.py          holat fayli yo'li -- pet, hook va o'chirgich uchun umumiy
 set_state.py      Claude Code hooklari chaqiradi, holatni yozadi
 install.py        o'rnatish mantiqi
 uninstall.py      o'chirish mantiqi
@@ -177,8 +288,9 @@ make_sprites.py   sprayt kadrlarini yasaydi (faqat kadrlarni o'zgartirsangiz
 make_sounds.py    ovoz fayllarini yasaydi (faqat ovozni o'zgartirsangiz kerak,
                   faqat standart kutubxona)
 grid.json         maskotning asl piksellari
-sprites/          12 ta kadr x 2 yo'nalish: stand, walk1-3, blink, fall,
-                  squash, peck, wave, cheer, sway_l/r (alfali nusxa)
+sprites/          20 ta kadr x 2 yo'nalish: stand, walk1-3, blink, sleep,
+                  fall, squash, peck, wave, wave_l, wave_r, cheer,
+                  sway_l/r va kulgan nusxalari happy_* (alfali nusxa)
 sprites/flat/     kadrlar (kalit rangga yopishtirilgan -- pet shularni o'qiydi)
 sounds/           harakat tovushlari: hop, poke, cheer, throw, land, idle (WAV)
 ```
@@ -209,6 +321,7 @@ THROW_MAX = 60.0    # uloqtirish tezligi chegarasi
 
 NOTICE_PX = 240     # kursorni shu masofadan sezadi
 POKE_SEC = 2.2      # bosilganda shuncha vaqt hayajonlanadi
+HAPPY_SEC = 2.6     # bosilganda shuncha vaqt kulib turadi
 
 ACT_MIN, ACT_MAX = 3.0, 8.0   # bitta faoliyat shuncha soniya davom etadi
 STALE_SEC = 900     # bundan eski "working" holati eskirgan hisoblanadi
@@ -230,20 +343,104 @@ Kattalikni o'zgartirsangiz sakrash balandliklarini ham mutanosib moslang
 (`pet.py` dagi `_do_hop`, `_act_cheer`, `_do_poke` ichidagi sonlar) va
 pufak shriftini (`Bubble.__init__` dagi `size`).
 
+## macOS'da ishlatish
+
+Pet Windows va macOS'da bir xil ishlaydi — farqi faqat ishga tushirish
+fayllarida va tizim bilan bog'lanish usulida.
+
+### Boshlash
+
+**Kerak bo'ladi:** macOS va Python 3.8+. Tkinter bilan birga kelgan nusxa
+kerak — [python.org](https://python.org) dan o'rnatilgani eng ishonchli.
+Tekshirish:
+
+```bash
+python3 -c "import tkinter; print(tkinter.TkVersion)"
+```
+
+Agar xato chiqsa, python.org dan Python o'rnating (Homebrew nusxasiga
+`brew install python-tk` kerak bo'lishi mumkin).
+
+So'ng papkada:
+
+```bash
+chmod +x install.command       # ZIP orqali olgan bo'lsangiz
+./install.command
+```
+
+yoki Finder'da **`install.command`** ni ikki marta bosing.
+
+> **Gatekeeper.** Birinchi marta ochganda «tasdiqlanmagan dasturchi»
+> ogohlantirishi chiqishi mumkin. Faylga o'ng tugma → **Open** → yana
+> **Open**. Yoki umuman chetlab o'tib, terminaldan `python3 install.py`
+> ni ishlating.
+
+O'rnatgandan keyin **Claude Code'ni qayta ishga tushiring** — hooklar faqat
+yangi sessiyada yuklanadi.
+
+### Kundalik ishlatish
+
+| Ish | Buyruq |
+|---|---|
+| Qo'lda ishga tushirish | `./start-pet.command` yoki `python3 pet.py` |
+| Chiqish | pet'ga ikki barmoq bilan bosing → «Chiqish» |
+| O'chirish | `./uninstall.command` |
+| Avtostartni vaqtincha to'xtatish | `launchctl unload ~/Library/LaunchAgents/com.claude-pet.plist` |
+| Avtostartni qaytarish | `launchctl load ~/Library/LaunchAgents/com.claude-pet.plist` |
+
+O'ng tugma menyusi trackpad'da **ikki barmoq bilan bosish** yoki `Control` +
+bosish orqali ochiladi.
+
+### Windows'dan farqlari
+
+| Nima | Windows | macOS |
+|---|---|---|
+| Shaffof fon | oynadagi kalit rang ko'rinmas qilinadi, kadrlar `sprites/flat/` dan | oynaning o'zi shaffof, kadrlar alfa kanali bilan `sprites/` dan |
+| Ovoz | `winsound` | `afplay` |
+| Ekranlar | `EnumDisplayMonitors` | `NSScreen` (pyobjc) yoki faqat asosiy ekran |
+| Avtostart | Startup papkasidagi `.vbs` | `~/Library/LaunchAgents/com.claude-pet.plist` |
+| Holat fayli | `%TEMP%\claude-pet\` | `~/Library/Caches/claude-pet/` |
+| Shrift | Segoe UI | Helvetica Neue |
+
+Holat fayli macOS'da `TMPDIR` da emas, `Caches` da turadi: `TMPDIR` sessiyaga
+bog'langan bo'lishi mumkin va hook bilan pet uni har xil ko'rib qolardi.
+Yo'l `paths.py` da bir marta hisoblanadi.
+
+### macOS nosozliklari
+
+**Pet ko'rinmayapti** — terminaldan `python3 pet.py` ni ishlating va xatoni
+o'qing. Ko'p uchraydigani: Tkinter yo'q (yuqoridagi tekshiruvga qarang).
+
+**Pet fonida to'rtburchak qoladi** — oyna shaffofligi Tk versiyasiga bog'liq.
+`python3 -c "import tkinter; print(tkinter.TkVersion)"` 8.6 dan past bo'lsa
+python.org dan yangi Python o'rnating.
+
+**Faqat bitta ekranda yuradi** — `pip3 install pyobjc-framework-Cocoa`,
+so'ng pet'ni qayta ishga tushiring.
+
+**Ovoz chiqmayapti** — `/usr/bin/afplay` borligini tekshiring; menyudagi
+«Ovoz» belgisi yoqilganmi?
+
 ## Nosozliklar
 
 **Pet ko'rinmayapti** — `start-pet.bat` ni qo'lda ishga tushiring. Xato chiqsa
-Python o'rnatilmagan yoki PATH da yo'q.
+Python o'rnatilmagan yoki PATH da yo'q. (macOS uchun yuqoridagi bo'limga
+qarang.)
 
 **Yuradi, lekin Claude'ning holatini bilmaydi** — Claude Code'ni qayta ishga
 tushirdingizmi? Hooklar faqat yangi sessiyada yuklanadi. Tekshirish uchun
-`%TEMP%\claude-pet\state.json` ga qarang: xabar yuborganingizda `working`
-bo'lishi kerak.
+holat fayliga qarang — xabar yuborganingizda `working` bo'lishi kerak:
 
-**Papkani ko'chirdim, ishlamay qoldi** — yangi joyida `install.bat` ni
-qaytadan ishga tushiring.
+```
+Windows:  %TEMP%\claude-pet\state.json
+macOS:    ~/Library/Caches/claude-pet/state.json
+```
+
+**Papkani ko'chirdim, ishlamay qoldi** — yangi joyida `install.bat`
+(macOS: `install.command`) ni qaytadan ishga tushiring.
 
 **Ikkita pet chiqdi** — chiqmaydi: 50573-port qulf sifatida ishlatiladi, ikkinchi
 nusxa o'zi yopiladi.
 
-**Butunlay o'chirish** — `uninstall.bat`, so'ng papkani o'chiring.
+**Butunlay o'chirish** — `uninstall.bat` (macOS: `uninstall.command`), so'ng
+papkani o'chiring.

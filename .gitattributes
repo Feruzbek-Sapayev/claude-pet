@@ -1,0 +1,9 @@
+# Qator oxirlari muhim: .command fayllarni bash o'qiydi, CRLF bo'lsa
+# "\r: command not found" deb yiqiladi. .bat esa aksincha, CRLF bo'lsin.
+*.command text eol=lf
+*.sh      text eol=lf
+*.bat     text eol=crlf
+*.py      text
+*.md      text
+*.png     binary
+*.wav     binary

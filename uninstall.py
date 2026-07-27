@@ -8,15 +8,27 @@ import json
 import os
 import shutil
 import signal
+import subprocess
 import sys
 
+IS_MAC = sys.platform == "darwin"
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-CLAUDE_DIR = os.path.join(os.path.expanduser("~"), ".claude")
+HOME = os.path.expanduser("~")
+CLAUDE_DIR = os.path.join(HOME, ".claude")
 SETTINGS = os.path.join(CLAUDE_DIR, "settings.json")
-STARTUP_FILE = os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows",
-                            "Start Menu", "Programs", "Startup", "claude-pet.vbs")
-STATE_DIR = os.path.join(os.environ.get("TEMP", "/tmp"), "claude-pet")
-PID_FILE = os.path.join(STATE_DIR, "pet.pid")
+
+LAUNCH_LABEL = "com.claude-pet"
+if IS_MAC:
+    STARTUP_FILE = os.path.join(HOME, "Library", "LaunchAgents",
+                                LAUNCH_LABEL + ".plist")
+else:
+    STARTUP_FILE = os.path.join(os.environ.get("APPDATA", ""), "Microsoft",
+                                "Windows", "Start Menu", "Programs", "Startup",
+                                "claude-pet.vbs")
+
+sys.path.insert(0, HERE)
+from paths import PID_FILE   # noqa: E402
 
 
 def say(msg):
@@ -63,11 +75,14 @@ def remove_hooks():
 
 
 def remove_startup():
-    if os.path.exists(STARTUP_FILE):
-        os.remove(STARTUP_FILE)
-        say("  avtostartdan olib tashlandi")
-    else:
+    if not os.path.exists(STARTUP_FILE):
         say("  avtostartda yo'q edi")
+        return
+    if IS_MAC:
+        # avval launchd ro'yxatidan tushiramiz, so'ng faylni olib tashlaymiz
+        subprocess.run(["launchctl", "unload", STARTUP_FILE], capture_output=True)
+    os.remove(STARTUP_FILE)
+    say("  avtostartdan olib tashlandi")
 
 
 def stop_pet():

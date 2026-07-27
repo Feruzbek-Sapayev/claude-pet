@@ -4,25 +4,31 @@ Claude Code ishlayotganda yuradi va boshi tepasida nima qilayotganini aytadi,
 bo'sh turganda tik turib ko'z qisadi, uzoq bo'sh qolsa uxlaydi,
 javobingizni kutayotganda sakraydi.
 
-Ishga tushirish:  pythonw pet.py
+Windows va macOS'da ishlaydi.
+
+Ishga tushirish:  pythonw pet.py  (macOS: python3 pet.py)
 Chiqish:          maskotga o'ng tugma -> Chiqish
 Ko'chirish:       chap tugma bilan sudrang
 """
-import ctypes
-import ctypes.wintypes
 import json
 import math
 import os
 import random
 import socket
+import subprocess
 import sys
 import time
 import tkinter as tk
 
-try:
-    import winsound          # faqat Windows -- ovoz effektlari uchun
-except Exception:
-    winsound = None
+IS_MAC = sys.platform == "darwin"
+IS_WIN = os.name == "nt"
+
+if IS_WIN:
+    import ctypes
+    import ctypes.wintypes
+    import winsound          # ovoz effektlari uchun
+else:
+    ctypes = winsound = None
 
 _LOCK_PORT = 50573
 _lock = None
@@ -46,11 +52,21 @@ def acquire_lock():
 HERE = os.path.dirname(os.path.abspath(__file__))
 SPRITES = os.path.join(HERE, "sprites")
 SOUNDS = os.path.join(HERE, "sounds")
-STATE_DIR = os.path.join(os.environ.get("TEMP", "/tmp"), "claude-pet")
-STATE_FILE = os.path.join(STATE_DIR, "state.json")
-PID_FILE = os.path.join(STATE_DIR, "pet.pid")
 
-TRANS = "#ff00ff"       # shaffof qilinadigan rang
+sys.path.insert(0, HERE)
+from paths import STATE_DIR, STATE_FILE, PID_FILE   # noqa: E402
+
+# Shaffoflik ikki xil ishlaydi. Windows'da oyna bitta "kalit rang"ni butunlay
+# ko'rinmas qiladi, shuning uchun kadrlar shu rangga yopishtirilgan nusxadan
+# (sprites/flat) o'qiladi. macOS'da oynaning o'zi shaffof bo'la oladi, u yerda
+# alfa kanalli asl kadrlar ishlatiladi.
+TRANS = "systemTransparent" if IS_MAC else "#ff00ff"
+FRAME_DIR = SPRITES if IS_MAC else os.path.join(SPRITES, "flat")
+UI_FONT = "Helvetica Neue" if IS_MAC else "Segoe UI"
+
+# macOS'da ovozni tizimning o'z chalg'ichi chaladi (winsound o'rniga)
+AFPLAY = "/usr/bin/afplay" if IS_MAC and os.path.exists("/usr/bin/afplay") else None
+
 TICK_MS = 50
 WALK_SPEED = 2.4        # ishlayotgandagi tezlik (piksel/tik)
 IDLE_SPEED = 1.0
@@ -77,6 +93,15 @@ SQUASH_TICKS = 5        # yerga urilgandan keyin necha tik siqilib turadi
 NOTICE_PX = 240         # kursor shu masofaga kirsa, pet unga qaraydi
 POKE_SEC = 2.2          # ustiga bosilganda shuncha vaqt hayajonlanadi
 CLICK_PX = 5            # shundan kam siljish "bosish" hisoblanadi
+
+# kulgan holat -- ko'zi "^^" ga o'tadi
+HAPPY_SEC = 2.6         # bosilgandan keyin shuncha vaqt kulib turadi
+# kulgan nusxasi bor kadrlar
+HAPPY_FRAMES = ("stand", "wave", "wave_l", "wave_r", "cheer")
+
+# Qo'l silkitish uslublari: ikkala qo'l, faqat chapi, faqat o'ngi yoki
+# navbat bilan. Ro'yxatdan tasodifiy tanlanadi.
+WAVE_STYLES = ("wave", "wave_l", "wave_r", "alt")
 
 # ovoz
 SOUND_ON = True         # ovoz standart holatda yoniq
@@ -133,6 +158,25 @@ BUBBLE_BG = "#1e1f22"
 BUBBLE_LINE = "#d77757"
 BUBBLE_TEXT = "#ece4dc"
 
+# uxlayotganda tepaga ko'tariladigan "Z" harflari
+ZZZ_COUNT = 3           # bir vaqtda nechta Z ko'rinadi
+ZZZ_RISE = 56           # bitta Z shuncha piksel ko'tarilib so'nadi
+ZZZ_PERIOD = 3.2        # shu yo'lni bosib o'tishga ketadigan vaqt (s)
+ZZZ_DRIFT = 12          # ko'tarilgan sari yon tomonga eng ko'p siljish
+ZZZ_SCALE = (2, 4)      # harf piksellarining kattaligi: pastda kichik, tepada katta
+ZZZ_STEPS = 12          # yo'l shuncha bosqichga bo'linadi (har biriga tayyor rasm)
+ZZZ_LIFT = 44           # yotgan maskot tepasidan shuncha px balandda boshlanadi
+ZZZ_NEAR = "#ded7cf"    # yangi chiqqan Z
+ZZZ_FAR = "#4c4d54"     # so'nib borayotgani
+
+# "Z" harfi -- shrift emas, piksel naqsh. Shrift bo'lsa Windows uni silliqlab
+# chekkalarini shaffof kalit rangga aralashtirib yuboradi (magenta hoshiya).
+Z_GLYPH = ("#####",
+           "...##",
+           "..##.",
+           ".##..",
+           "#####")
+
 
 def pick_phrase(idle_sec):
     """Bo'sh turgandagi gapni tanlaydi -- kun vaqti va jimlik uzunligiga qarab."""
@@ -158,18 +202,24 @@ def load_verbs():
     return FALLBACK_VERBS
 
 
-class RECT(ctypes.Structure):
-    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
-                ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+if IS_WIN:
+    class RECT(ctypes.Structure):
+        _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                    ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
 
-
-class MONITORINFO(ctypes.Structure):
-    _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT),
-                ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT),
+                    ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
 
 
 def make_dpi_aware():
-    """Har monitor uchun alohida DPI -- koordinatalar haqiqiy piksellarda bo'ladi."""
+    """Har monitor uchun alohida DPI -- koordinatalar haqiqiy piksellarda bo'ladi.
+
+    Faqat Windows'da kerak: macOS'da Tk allaqachon nuqta koordinatalarida
+    ishlaydi va Retina masshtabini o'zi hal qiladi.
+    """
+    if not IS_WIN:
+        return
     for fn in (lambda: ctypes.windll.shcore.SetProcessDpiAwareness(2),
                lambda: ctypes.windll.shcore.SetProcessDpiAwareness(1),
                lambda: ctypes.windll.user32.SetProcessDPIAware()):
@@ -180,11 +230,8 @@ def make_dpi_aware():
             continue
 
 
-def list_monitors():
-    """Barcha monitorlarning ish maydonlari, chapdan o'ngga tartiblangan.
-
-    Har biri (left, top, right, bottom) -- vazifalar paneli hisobga olingan.
-    """
+def _win_monitors():
+    """Windows: EnumDisplayMonitors orqali har ekranning ish maydoni."""
     mons = []
     proc_t = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p,
                                 ctypes.POINTER(RECT), ctypes.c_void_p)
@@ -212,7 +259,83 @@ def list_monitors():
             mons.append((r.left, r.top, r.right, r.bottom))
         except Exception:
             pass
+    return mons
+
+
+def _mac_monitors():
+    """macOS: NSScreen orqali har ekranning ish maydoni (pyobjc bo'lsa).
+
+    `visibleFrame` menyu paneli va Dock'ni hisobga oladi. NSScreen'ning y o'qi
+    pastdan yuqoriga, Tk'niki esa yuqoridan pastga -- shuning uchun eng baland
+    ekranga nisbatan ag'dariladi.
+    """
+    try:
+        from AppKit import NSScreen
+    except Exception:
+        return []
+
+    screens = list(NSScreen.screens())
+    if not screens:
+        return []
+    # global koordinata boshi: eng tepadagi ekranning yuqori chekkasi
+    top = max(s.frame().origin.y + s.frame().size.height for s in screens)
+
+    mons = []
+    for s in screens:
+        v = s.visibleFrame()
+        left = int(v.origin.x)
+        bottom = int(top - v.origin.y)          # ag'darilgach pastki chekka
+        mons.append((left, bottom - int(v.size.height),
+                     left + int(v.size.width), bottom))
+    return mons
+
+
+def _tk_monitor(root):
+    """Zaxira: faqat asosiy ekran, Tk'ning o'z ma'lumotidan.
+
+    `wm maxsize` -- oyna egallashi mumkin bo'lgan eng katta o'lcham, ya'ni
+    macOS'da menyu paneli va Dock chegirilgani. Panel balandligini bilish
+    uchun ko'rinmas oyna 0,0 ga qo'yiladi: tizim uni panel ostiga suradi.
+    """
+    top = 0
+    if IS_MAC:
+        try:
+            probe = tk.Toplevel(root)
+            probe.attributes("-alpha", 0.0)
+            probe.geometry("40x40+0+0")
+            probe.update_idletasks()
+            top = max(0, probe.winfo_y())
+            probe.destroy()
+        except Exception:
+            top = 25          # odatdagi menyu paneli balandligi
+    _, max_h = root.wm_maxsize()
+    return [(0, top, root.winfo_screenwidth(), top + max_h)]
+
+
+def list_monitors(root=None):
+    """Barcha monitorlarning ish maydonlari, chapdan o'ngga tartiblangan.
+
+    Har biri (left, top, right, bottom) -- vazifalar paneli / Dock chegirilgan.
+    """
+    mons = _win_monitors() if IS_WIN else _mac_monitors() if IS_MAC else []
+    if not mons and root is not None:
+        mons = _tk_monitor(root)
     return sorted(mons)
+
+
+def cursor_pos(root):
+    """Sichqoncha kursorining global koordinatasi, topilmasa None."""
+    if IS_WIN:
+        try:
+            pt = ctypes.wintypes.POINT()
+            ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+            return pt.x, pt.y
+        except Exception:
+            return None
+    try:
+        return root.winfo_pointerxy()
+    except Exception:
+        return None
 
 
 def read_state():
@@ -233,54 +356,186 @@ def read_state():
         return "idle"
 
 
-class Bubble:
-    """Maskot boshi tepasidagi gap pufagi -- alohida shaffof oyna."""
+def float_window(win):
+    """Ramkasiz, hamma narsa ustida turadigan, foni ko'rinmas oyna.
 
-    PAD_X, PAD_Y, TAIL = 11, 6, 7
+    Windows: bitta kalit rang butunlay ko'rinmas qilinadi.
+    macOS: oynaning o'zi shaffof bo'ladi, kadrlar alfa kanali bilan chiziladi.
+    """
+    win.overrideredirect(True)
+    win.attributes("-topmost", True)
+    try:
+        win.attributes("-transparent" if IS_MAC else "-transparentcolor",
+                       True if IS_MAC else TRANS)
+    except tk.TclError:
+        pass
+    win.configure(bg=TRANS)
+
+
+def mix(c1, c2, t):
+    """Ikki "#rrggbb" rangni aralashtiradi: t=0 -> c1, t=1 -> c2."""
+    a = [int(c1[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(c2[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#%02x%02x%02x" % tuple(int(v + (w - v) * t) for v, w in zip(a, b))
+
+
+class Zzz:
+    """Uxlayotgan maskot tepasida ko'tarilib so'nadigan "Z" harflari.
+
+    Pet oynasi sprayt bo'yiga teng, tepasida joy yo'q -- shuning uchun
+    pufak kabi alohida shaffof oynada chiziladi.
+    """
+
+    W = 62
 
     def __init__(self, root):
         self.win = tk.Toplevel(root)
-        self.win.overrideredirect(True)
-        self.win.attributes("-topmost", True)
-        self.win.attributes("-transparentcolor", TRANS)
-        self.win.configure(bg=TRANS)
+        float_window(self.win)
+
+        self.base_y = len(Z_GLYPH) * ZZZ_SCALE[1] / 2 + 2
+        self.h = int(ZZZ_RISE + self.base_y * 2)
+        self.canvas = tk.Canvas(self.win, width=self.W, height=self.h,
+                                bg=TRANS, highlightthickness=0, bd=0)
+        self.canvas.pack()
+
+        # yo'lning har bosqichi uchun tayyor rasm -- har tikda qayta chizilmaydi
+        self.imgs = [self._render(t / (ZZZ_STEPS - 1)) for t in range(ZZZ_STEPS)]
+        self.items = [self.canvas.create_image(0, 0, anchor="c")
+                      for _ in range(ZZZ_COUNT)]
+        self.win.withdraw()
+        self.visible = False
+
+    def _render(self, t):
+        """Yo'lning t nuqtasidagi Z: o'lchami kattalashib, rangi so'nib boradi."""
+        k = round(ZZZ_SCALE[0] + (ZZZ_SCALE[1] - ZZZ_SCALE[0]) * t)
+        color = mix(ZZZ_NEAR, ZZZ_FAR, t)
+        img = tk.PhotoImage(width=len(Z_GLYPH[0]) * k, height=len(Z_GLYPH) * k)
+        if not IS_MAC:      # kalit rang: fon aynan shu rangda bo'lishi kerak
+            img.put(TRANS, to=(0, 0, img.width(), img.height()))
+        for y, row in enumerate(Z_GLYPH):
+            for x, ch in enumerate(row):
+                if ch == "#":
+                    img.put(color, to=(x * k, y * k, (x + 1) * k, (y + 1) * k))
+        return img
+
+    def show(self, cx, bottom_y, now):
+        """cx -- markaz, bottom_y -- eng pastki Z turadigan y."""
+        self.win.geometry(f"{self.W}x{self.h}"
+                          f"+{int(cx - self.W / 2)}+{int(bottom_y - self.h)}")
+        for i, item in enumerate(self.items):
+            # har bir Z bir xil yo'lni bosadi, faqat fazasi surilgan
+            p = (now / ZZZ_PERIOD + i / ZZZ_COUNT) % 1.0
+            self.canvas.coords(
+                item,
+                self.W / 2 + math.sin(p * math.pi) * ZZZ_DRIFT,
+                self.h - self.base_y - p * ZZZ_RISE)
+            self.canvas.itemconfig(
+                item, image=self.imgs[int(p * ZZZ_STEPS) % ZZZ_STEPS])
+        if not self.visible:
+            self.win.deiconify()
+            self.win.attributes("-topmost", True)
+            self.visible = True
+
+    def hide(self):
+        if self.visible:
+            self.win.withdraw()
+            self.visible = False
+
+
+class Bubble:
+    """Maskot boshi tepasidagi bulut -- alohida shaffof oyna."""
+
+    BUMPS = (12, 8.5, 11, 9)    # bulut chetidagi doiralar radiusi, navbatlashadi
+    STEP = 17               # ular markazlari orasidagi masofa
+    MARGIN = 7              # matn bilan bulut ichki chegarasi orasidagi bo'shliq
+    TAIL_R = (5, 3)         # pastga tushadigan dumcha doiralari
+    TAIL_GAP = 3
+    LINE = 2                # hoshiya qalinligi
+
+    # Doiralar markazi matn to'rtburchagining MARGIN qadar kengaytirilgan
+    # chekkasida turadi, shuning uchun matndan tashqi chekkagacha:
+    # MARGIN + eng katta radius + hoshiya.
+    PAD_X = PAD_Y = int(MARGIN + max(BUMPS) + LINE)
+
+    def __init__(self, root):
+        self.win = tk.Toplevel(root)
+        float_window(self.win)
         self.canvas = tk.Canvas(self.win, bg=TRANS, highlightthickness=0, bd=0)
         self.canvas.pack()
 
         import tkinter.font as tkfont
-        self.font = tkfont.Font(family="Segoe UI", size=9)
+        self.font = tkfont.Font(family=UI_FONT, size=9)
         self.text = None
         self.w = self.h = 0
         self.win.withdraw()
         self.visible = False
 
-    def _rounded(self, x0, y0, x1, y1, r):
-        pts = [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1,
-               x1 - r, y1, x0 + r, y1, x0, y1, x0, y1 - r, x0, y0 + r, x0, y0]
-        self.canvas.create_polygon(pts, smooth=True, splinesteps=12,
-                                   fill=BUBBLE_BG, outline=BUBBLE_LINE, width=2)
+    def _parts(self, x0, y0, x1, y1):
+        """Bulutni tashkil qiladigan bo'laklar: o'zak to'rtburchak + doiralar.
+
+        Doiralar o'zakning to'rt chekkasi bo'ylab teriladi, radiusi navbat
+        bilan o'zgaradi -- shundan kontur to'lqinlanib chiqadi. Qo'shni
+        doiralar bir-birini yaxshigina qoplaydi, aks holda ichki yoylar
+        ko'milmay qoladi.
+        """
+        yield self.canvas.create_rectangle, x0, y0, x1, y1
+
+        def along(ax, ay, bx, by, phase):
+            n = max(1, round(math.hypot(bx - ax, by - ay) / self.STEP))
+            for i in range(n + 1):
+                t = i / n
+                r = self.BUMPS[(phase + i) % len(self.BUMPS)]
+                cx, cy = ax + (bx - ax) * t, ay + (by - ay) * t
+                yield self.canvas.create_oval, cx - r, cy - r, cx + r, cy + r
+
+        # har chekka navbatning boshqa joyidan boshlanadi -- naqsh takrorlanmasin
+        yield from along(x0, y0, x1, y0, 0)     # tepa
+        yield from along(x0, y1, x1, y1, 2)     # tag
+        yield from along(x0, y0, x0, y1, 1)     # chap
+        yield from along(x1, y0, x1, y1, 3)     # o'ng
+
+    def _cloud(self, x0, y0, x1, y1):
+        """Bulutni chizadi.
+
+        Avval hamma bo'lak hoshiyasi bilan chiziladi, so'ng har biri chiziq
+        qalinligicha ichkariga siqib qayta bo'yaladi -- shunda bo'laklarning
+        ichkarida qolgan yoylari ko'milib, faqat tashqi hoshiya ko'rinadi.
+        """
+        parts = list(self._parts(x0, y0, x1, y1))
+        for fn, a, b, c, d in parts:
+            fn(a, b, c, d, fill=BUBBLE_BG, outline=BUBBLE_LINE, width=self.LINE)
+        g = self.LINE
+        for fn, a, b, c, d in parts:
+            fn(a + g, b + g, c - g, d - g, fill=BUBBLE_BG, outline="")
 
     def show(self, text, cx, bottom_y):
-        """cx -- markaz, bottom_y -- pufak pastki chekkasi turadigan y."""
+        """cx -- markaz, bottom_y -- dumcha uchi turadigan y."""
         if text != self.text:
             self.text = text
             tw = self.font.measure(text)
             th = self.font.metrics("linespace")
             self.w = tw + self.PAD_X * 2
-            self.h = th + self.PAD_Y * 2 + self.TAIL
+            cloud_h = th + self.PAD_Y * 2
+            tail = sum(2 * r + self.TAIL_GAP for r in self.TAIL_R)
+            self.h = int(cloud_h + tail)
             self.canvas.config(width=self.w, height=self.h)
             self.canvas.delete("all")
-            body_b = self.h - self.TAIL
-            self._rounded(1, 1, self.w - 1, body_b, 9)
-            # pastga qaragan uchburchak dumcha
-            mid = self.w / 2
-            self.canvas.create_polygon(
-                mid - 6, body_b - 1, mid + 6, body_b - 1, mid, self.h - 1,
-                fill=BUBBLE_BG, outline=BUBBLE_LINE, width=2)
-            self.canvas.create_polygon(
-                mid - 4, body_b - 2, mid + 4, body_b - 2, mid, self.h - 4,
-                fill=BUBBLE_BG, outline=BUBBLE_BG)
-            self.canvas.create_text(self.w / 2, body_b / 2 + 1, text=text,
+
+            # dumcha -- bulutdan maskot tomon tushadigan kichrayuvchi doiralar
+            y = cloud_h
+            for i, r in enumerate(self.TAIL_R):
+                x = self.w / 2 - i * 5
+                self.canvas.create_oval(x - r, y, x + r, y + 2 * r,
+                                        fill=BUBBLE_BG, outline=BUBBLE_LINE,
+                                        width=self.LINE)
+                y += 2 * r + self.TAIL_GAP
+
+            # o'zak matndan MARGIN qadar keng: bulutning ichkariga botgan
+            # joylari ham matnga tegib ketmasin
+            m = self.MARGIN
+            self._cloud(self.PAD_X - m, self.PAD_Y - m,
+                        self.w - self.PAD_X + m, self.PAD_Y + th + m)
+            self.canvas.create_text(self.w / 2, self.PAD_Y + th / 2, text=text,
                                     fill=BUBBLE_TEXT, font=self.font)
         x = int(cx - self.w / 2)
         self.win.geometry(f"{self.w}x{self.h}+{x}+{int(bottom_y - self.h)}")
@@ -304,14 +559,11 @@ class Pet:
         self.frames = self._load_frames()
         self.w, self.h = self.frames["stand"].width(), self.frames["stand"].height()
 
-        self.mons = list_monitors()
+        self.mons = list_monitors(self.root)
         self._span()
 
         self.win = tk.Toplevel(self.root)
-        self.win.overrideredirect(True)
-        self.win.attributes("-topmost", True)
-        self.win.attributes("-transparentcolor", TRANS)
-        self.win.configure(bg=TRANS)
+        float_window(self.win)
 
         self.canvas = tk.Canvas(self.win, width=self.w, height=self.h,
                                 bg=TRANS, highlightthickness=0, bd=0)
@@ -342,6 +594,8 @@ class Pet:
 
         # kursor
         self.poke_until = 0.0
+        self.happy_until = 0.0
+        self.poke_arm = "wave_r"
 
         # ovoz
         self.sound_var = tk.BooleanVar(master=self.root, value=SOUND_ON)
@@ -354,9 +608,11 @@ class Pet:
         self.act = "walk"
         self.act_until = 0.0
         self.act_phase = 0.0
+        self.wave_style = "wave"
 
         self.verbs = load_verbs()
         self.bubble = Bubble(self.root)
+        self.zzz = Zzz(self.root)
         self.verb = random.choice(self.verbs)
         self.next_verb = 0.0
         self.idle_since = time.time()
@@ -374,15 +630,16 @@ class Pet:
 
     # ── yuklash ──────────────────────────────────────────────────────────
     def _load_frames(self):
-        """Kadrlar tayyor holda -- kalit rang fonga yopishtirilgan (flat/)."""
+        """Kadrlar tayyor holda: Windows'da kalit rangli, macOS'da alfali."""
         frames = {}
-        for name in ("stand", "blink", "walk1", "walk2", "walk3",
-                     "fall", "squash", "peck", "wave", "cheer",
-                     "sway_l", "sway_r"):
+        names = ("stand", "blink", "sleep", "walk1", "walk2", "walk3",
+                 "fall", "squash", "peck", "cheer",
+                 "wave", "wave_l", "wave_r", "sway_l", "sway_r")
+        for name in names + tuple("happy_" + n for n in HAPPY_FRAMES):
             for suffix in ("", "_flip"):
                 key = name + suffix
                 frames[key] = tk.PhotoImage(
-                    file=os.path.join(SPRITES, "flat", key + ".png"))
+                    file=os.path.join(FRAME_DIR, key + ".png"))
         return frames
 
     # ── monitorlar ───────────────────────────────────────────────────────
@@ -406,7 +663,7 @@ class Pet:
 
     def _refresh_monitors(self):
         """Monitor ulansa/uzilsa chegaralarni yangilaydi."""
-        mons = list_monitors()
+        mons = list_monitors(self.root)
         if mons and mons != self.mons:
             self.mons = mons
             self._span()
@@ -427,7 +684,9 @@ class Pet:
         self.canvas.bind("<ButtonPress-1>", self._drag_start)
         self.canvas.bind("<B1-Motion>", self._drag_move)
         self.canvas.bind("<ButtonRelease-1>", self._drag_end)
-        self.canvas.bind("<Button-3>", self._menu)
+        # o'ng tugma: Windows'da 3-tugma, macOS'da Tk uni 2-tugma deb beradi
+        for seq in ("<Button-3>",) + (("<Button-2>",) if IS_MAC else ()):
+            self.canvas.bind(seq, self._menu)
 
         self.menu = tk.Menu(self.root, tearoff=0)
         self.menu.add_command(label="Yerga qaytar", command=self._reset_pos)
@@ -437,6 +696,7 @@ class Pet:
 
     def _drag_start(self, e):
         self.dragging = True
+        self.idle_since = time.time()   # ushlansa uyg'onadi
         self.flying = False
         self.vx = self.vy = 0.0
         self._grab = (e.x, e.y)
@@ -490,8 +750,10 @@ class Pet:
         return clamp(vx), clamp(vy)
 
     def _poke(self):
-        """Ustiga bosilganda sapchib tushadi."""
+        """Ustiga bosilganda bir qo'lini ko'tarib "Nima gap?" deb sapchiydi."""
         self.poke_until = time.time() + POKE_SEC
+        self.happy_until = time.time() + HAPPY_SEC
+        self.poke_arm = random.choice(("wave_l", "wave_r"))
         self.hop_phase = 0.0
         self._hop_n = -1
         self.idle_since = time.time()
@@ -535,6 +797,9 @@ class Pet:
         self._place_bubble(self.ground + self.y_off, text)
 
     def _show(self, name):
+        # xursand paytda kadrning kulgan nusxasi bo'lsa -- o'shani ko'rsatamiz
+        if time.time() < self.happy_until and name in HAPPY_FRAMES:
+            name = "happy_" + name
         key = name + ("" if self.dir > 0 else "_flip")
         self.canvas.itemconfig(self.item, image=self.frames[key])
 
@@ -549,10 +814,12 @@ class Pet:
     def _play(self, name):
         """Harakatga mos qisqa tovush -- asinxron, hech qachon bloklamaydi.
 
-        Ovoz o'chirilgan yoki winsound yo'q bo'lsa jim o'tadi; ketma-ket
-        tovushlar SOUND_GAP orqali chegaralanadi (bir-birini kesmasin).
+        Windows'da winsound, macOS'da `afplay` -- ikkalasi ham WAV faylni
+        o'qiydi va fonda chaladi. Ovoz o'chirilgan yoki chaladigan narsa
+        topilmasa jim o'tadi; ketma-ket tovushlar SOUND_GAP orqali
+        chegaralanadi (bir-birini kesmasin).
         """
-        if winsound is None or not self.sound_var.get():
+        if not self.sound_var.get():
             return
         now = time.time()
         if now < self._sound_block:
@@ -561,9 +828,17 @@ class Pet:
         if not os.path.exists(path):
             return
         try:
-            winsound.PlaySound(
-                path,
-                winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+            if winsound is not None:
+                winsound.PlaySound(
+                    path, winsound.SND_FILENAME | winsound.SND_ASYNC
+                    | winsound.SND_NODEFAULT)
+            elif AFPLAY:
+                # chalib bo'lgach o'zi tugaydi; kutmaymiz, zombi ham qolmaydi
+                # kutmaymiz; tugaganini Python keyingi Popen'da o'zi yig'ishtiradi
+                subprocess.Popen([AFPLAY, path], stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+            else:
+                return
             self._sound_block = now + SOUND_GAP
         except Exception:
             pass
@@ -613,6 +888,7 @@ class Pet:
     def _update_bubble(self):
         """Boshi tepasidagi yozuvni holatga qarab yangilaydi."""
         now = time.time()
+        asleep = False
         if self.flying:
             self.bubble.hide()
         elif now < self.poke_until:
@@ -625,17 +901,31 @@ class Pet:
         elif self.state == "waiting":
             self._say("Javobingizni kutyapman")
         elif now - self.idle_since > SLEEP_AFTER:
-            self._say("z z z")
+            asleep = True          # gap pufagi emas -- tepasida "Z" uchadi
+            self.bubble.hide()
         elif now < self.talk_until:
             self._say(self.talk_text)
         elif now >= self.next_talk:
             self.talk_text = pick_phrase(now - self.idle_since)
             self.talk_until = now + TALK_SEC
+            self.happy_until = self.talk_until   # gapirayotganda kulib turadi
             self.next_talk = self.talk_until + random.uniform(TALK_MIN, TALK_MAX)
             self._say(self.talk_text)
         else:
             self.bubble.hide()
             self.next_verb = 0.0
+
+        if asleep:
+            self._place_zzz(now)
+        else:
+            self.zzz.hide()
+
+    def _place_zzz(self, now):
+        """Z harflarini yotgan maskotning tepasiga qo'yadi."""
+        half = self.zzz.W / 2
+        cx = self.x + self.w / 2
+        cx = max(self.left + half, min(self.right - half, cx))
+        self.zzz.show(cx, self.ground + self.y_off + self.h - ZZZ_LIFT, now)
 
     def _step_frame(self):
         if self.tick % FRAME_TICKS == 0:
@@ -667,8 +957,13 @@ class Pet:
             self.act_phase = 0.0
             if self.act == "walk":
                 self.dir = random.choice((-1, 1))
+            elif self.act == "wave":
+                self.wave_style = random.choice(WAVE_STYLES)
             elif self.act == "cheer":
                 self._play("cheer")
+            # quvonch va salomlashish -- faoliyat oxirigacha kulib turadi
+            if self.act in ("cheer", "wave"):
+                self.happy_until = self.act_until
         getattr(self, "_act_" + self.act)()
 
     def _act_walk(self):
@@ -680,9 +975,14 @@ class Pet:
         self._show("peck" if (self.tick // 4) % 2 else "stand")
 
     def _act_wave(self):
-        """Qo'llarini ko'tarib-tushiradi."""
+        """Qo'l silkitadi -- ikkalasini, bittasini yoki navbat bilan."""
         self.y_off = 0
-        self._show("wave" if (self.tick // 6) % 2 else "stand")
+        n = self.tick // 6
+        if self.wave_style == "alt":
+            up = "wave_l" if (n // 2) % 2 else "wave_r"
+        else:
+            up = self.wave_style
+        self._show(up if n % 2 else "stand")
 
     def _act_think(self):
         """Sekin u yon-bu yon chayqaladi."""
@@ -739,22 +1039,21 @@ class Pet:
         self._show("squash" if self.squash_left > 0 else "fall")
 
     def _do_poke(self):
-        """Bosilganidan keyingi hayajon -- joyida sapchiydi."""
+        """Bosilganidan keyingi hayajon -- bir qo'li ko'tarilgan ko'yi sapchiydi."""
         self.hop_phase += 0.32
         self.y_off = -abs(math.sin(self.hop_phase)) * 11
-        self._show("stand")
+        self._show(self.poke_arm)
 
     def _face_cursor(self):
         """Kursor yaqin bo'lsa, o'sha tomonga o'giriladi."""
-        try:
-            pt = ctypes.wintypes.POINT()
-            ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
-        except Exception:
+        pos = cursor_pos(self.root)
+        if pos is None:
             return False
+        px, py = pos
         cx = self.x + self.w / 2
-        if abs(pt.x - cx) > NOTICE_PX or abs(pt.y - (self.ground + self.h / 2)) > NOTICE_PX:
+        if abs(px - cx) > NOTICE_PX or abs(py - (self.ground + self.h / 2)) > NOTICE_PX:
             return False
-        self.dir = 1 if pt.x >= cx else -1
+        self.dir = 1 if px >= cx else -1
         return True
 
     def _do_hop(self):
@@ -777,10 +1076,10 @@ class Pet:
 
         near = self._face_cursor()
 
-        # uzoq bo'sh tursa uxlaydi -- lekin kursor yaqinlashsa uyg'onadi
+        # uzoq bo'sh tursa yotib uxlaydi -- lekin kursor yaqinlashsa uyg'onadi
         if now - self.idle_since > SLEEP_AFTER:
             if not near:
-                self._show("blink")
+                self._show("sleep")
                 return
             self.idle_since = now
 

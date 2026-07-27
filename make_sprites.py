@@ -25,11 +25,24 @@ ARM_ROWS = (16, 24)             # qo'llar qatorlari
 LEG_ROWS = (32, 40)             # kesilgan rasmda oyoq qatorlari
 LEG_L = (10, 22)                # chap oyoq ustunlari
 LEG_R = (35, 46)                # o'ng oyoq ustunlari
-EYE_L = (15, 18, 8, 15)         # x0, x1, y0, y1
-EYE_R = (39, 42, 8, 15)
+HEAD_INNER = (1, 15)            # kalla ichi: tepa konturi bilan tag chizig'i orasi
+EYE_LIFT = 3                    # ko'zni tag chizig'idan shuncha piksel uzadi
+SMILE_WIDEN = 1                 # kulgan ko'z ("^") ochiq ko'zdan shuncha keng
+SMILE_THICK = 2                 # "^" chizig'ining qalinligi
+SLEEP_ROWS = (16, 40)           # yotgan gavda shu qatorlardan yig'iladi
+SHUT_EYE_WIDEN = 2              # yumuq ko'z ochiq ko'zdan shuncha keng
+SHUT_EYE_H = 3                  # yumuq ko'z chizig'ining qalinligi
 
 BG = (25, 26, 28)
 BG_TOL = 14
+
+# Asl rasm terminal skrinshotidan olingan, shuning uchun tanada har belgi-katak
+# chegarasida tikka chiziq qolgan. Ranglarni ikkiga ajratib tekislaymiz:
+# yorug'lari -- tana, qorong'ilari -- kontur va ko'z. Ikki guruh orasidagi
+# eng katta bo'shliq 96 va 109 yorqinliklari orasida, chegarani o'shanga qo'yamiz.
+BODY = (215, 119, 87, 255)
+INK = (0, 0, 0, 255)
+INK_MAX_LUM = 102
 
 
 def load_source(grid_path):
@@ -76,6 +89,110 @@ def strip_background(img):
     return img
 
 
+def flatten(img):
+    """Katak chiziqlarini yo'qotadi -- tana bir tekis, chekkalari toza kontur."""
+    w, h = img.size
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            lum = 0.299 * r + 0.587 * g + 0.114 * b
+            px[x, y] = INK if lum <= INK_MAX_LUM else BODY
+    return img
+
+
+def find_eyes(img):
+    """Kalla ichidagi qora dog'larni -- ko'zlarni -- topadi.
+
+    Chegaralar qo'lda yozilmaydi, shuning uchun ko'z ko'chsa `blink` ham
+    o'z-o'zidan ergashadi. Kalla ichida ko'zdan boshqa qora narsa yo'q.
+    """
+    px = img.load()
+    xs = range(HEAD_X[0] + 1, HEAD_X[1] - 1)
+    pts = [(x, y) for x in xs for y in range(*HEAD_INNER) if px[x, y] == INK]
+    if not pts:
+        return []
+
+    runs, run = [], []
+    for x in sorted({x for x, _ in pts}):
+        if run and x > run[-1] + 1:
+            runs.append(run)
+            run = []
+        run.append(x)
+    runs.append(run)
+
+    boxes = []
+    for cols in runs:
+        ys = [y for x, y in pts if cols[0] <= x <= cols[-1]]
+        boxes.append((cols[0], cols[-1] + 1, min(ys), max(ys) + 1))
+    return boxes
+
+
+def raise_eyes(img, dy=EYE_LIFT):
+    """Ko'zni yuqoriga suradi -- kalla tubidagi chiziqqa tegib turmasin."""
+    for x0, x1, y0, y1 in find_eyes(img):
+        eye = img.crop((x0, y0, x1, y1))
+        img.paste(BODY, (x0, y0, x1, y1))
+        img.paste(eye, (x0, y0 - dy))
+    return img
+
+
+def smile(base):
+    """Kuladigan kayfiyat -- ochiq ko'z o'rniga "^" belgisi qoladi.
+
+    "^" ochiq ko'zning o'rniga markazlashadi, balandligi kengligidan kelib
+    chiqadi -- shunda SMILE_WIDEN o'zgarsa ham burchak bir xil qiya bo'ladi.
+    """
+    img = base.copy()
+    px = img.load()
+    for x0, x1, y0, y1 in find_eyes(img):
+        img.paste(BODY, (x0, y0, x1, y1))
+        x0 = max(0, x0 - SMILE_WIDEN)
+        x1 = min(img.width, x1 + SMILE_WIDEN)
+        w = x1 - x0
+        rows = (w + 1) // 2 + SMILE_THICK - 1
+        top = y0 + ((y1 - y0) - rows) // 2
+        mid = (w - 1) / 2.0
+        for i in range(w):
+            y = top + int(abs(i - mid))
+            for t in range(SMILE_THICK):
+                px[x0 + i, y + t] = INK
+    return img
+
+
+def shut_eye(img, x0, x1, top):
+    """Yumuq ko'z chizig'i -- ochiq ko'z o'rniga, undan kengroq va qalinroq."""
+    img.paste(INK, (max(0, x0 - SHUT_EYE_WIDEN), top,
+                    min(img.width, x1 + SHUT_EYE_WIDEN), top + SHUT_EYE_H))
+
+
+def sleeping(base):
+    """Yotgan holat -- gavdaning pastki yarmi ag'dariladi.
+
+    Kalla ko'rinmaydi: keng qo'l bo'lagi polga yotadi, tana uning ustida,
+    oyoqlar tepada yig'ilib qoladi. Ko'z -- tana tubidagi ikki qisqa chiziq.
+    """
+    y0, y1 = SLEEP_ROWS
+    lying = base.crop((0, y0, base.width, y1)).transpose(Image.FLIP_TOP_BOTTOM)
+    img = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    top = base.height - lying.height
+    img.paste(lying, (0, top))
+
+    # ag'darilgach oyoq uchlari ochiq qolgan -- ustiga kontur qo'yamiz
+    px = img.load()
+    for x in range(img.width):
+        if px[x, top][3]:
+            px[x, top] = INK
+
+    # qo'l bo'lagi eng pastda, ko'z esa tananing tubida -- undan bir qator tepada
+    eye_y1 = img.height - (ARM_ROWS[1] - ARM_ROWS[0]) - 1
+    for x0, x1, _, _ in find_eyes(base):
+        shut_eye(img, x0, x1, eye_y1 - SHUT_EYE_H)
+    return img
+
+
 def lift_leg(base, cols, dy=2):
     """Bitta oyoqni dy piksel yuqoriga ko'taradi."""
     img = base.copy()
@@ -108,15 +225,18 @@ def shift_band(base, rows, dy):
     return img
 
 
-def shift_arm_tips(base, dy):
-    """Faqat tanadan chiqib turgan qo'l uchlarini ko'taradi.
+def shift_arm_tips(base, dy, side="lr"):
+    """Tanadan chiqib turgan qo'l uchlarini ko'taradi.
 
+    `side` -- qaysi qo'l: "l" (chap), "r" (o'ng) yoki "lr" (ikkalasi).
     Butun qo'l qatorini siljitsak tana ikkiga bo'linib ketadi -- shuning uchun
     bosh kengligidan tashqaridagi ustunlargagina tegamiz.
     """
     img = base.copy()
     y0, y1 = ARM_ROWS
-    for x0, x1 in ((0, HEAD_X[0]), (HEAD_X[1], base.width)):
+    spans = {"l": (0, HEAD_X[0]), "r": (HEAD_X[1], base.width)}
+    for s in side:
+        x0, x1 = spans[s]
         tip = img.crop((x0, y0, x1, y1))
         img.paste((0, 0, 0, 0), (x0, y0, x1, y1))
         img.paste(tip, (x0, y0 + dy), tip)
@@ -143,18 +263,11 @@ def squash(base, factor=0.82):
 
 
 def blink(base):
-    """Ko'zlarni yumadi -- ko'z to'rtburchagini tepasidagi tana rangi bilan to'ldiradi."""
+    """Ko'zlarni yumadi -- o'rnida yumuq ko'z chizig'i qoladi."""
     img = base.copy()
-    px = img.load()
-    for x0, x1, y0, y1 in (EYE_L, EYE_R):
-        for x in range(x0, x1):
-            fill = px[x, y0 - 1]
-            for y in range(y0, y1):
-                px[x, y] = fill
-        # ingichka yumuq ko'z chizig'i
-        mid = (y0 + y1) // 2
-        for x in range(x0, x1):
-            px[x, mid] = (60, 24, 12, 255)
+    for x0, x1, y0, y1 in find_eyes(img):
+        img.paste(BODY, (x0, y0, x1, y1))
+        shut_eye(img, x0, x1, (y0 + y1 - SHUT_EYE_H) // 2)
     return img
 
 
@@ -181,11 +294,16 @@ def save(img, name):
 def main():
     os.makedirs(OUT, exist_ok=True)
     grid_path = os.environ.get("MASCOT_GRID", os.path.join(HERE, "grid.json"))
-    src = strip_background(load_source(grid_path))
-    stand = src.crop(BBOX)
+    src = flatten(strip_background(load_source(grid_path)))
+    stand = raise_eyes(src.crop(BBOX))
 
     # havoda uchayotganda ikkala oyoq ham yig'ilgan bo'ladi
     fall = lift_leg(lift_leg(stand, LEG_L, dy=4), LEG_R, dy=4)
+    # qo'l silkitish: ikkalasi, faqat chapi yoki faqat o'ngi
+    waves = {"wave" + s: shift_arm_tips(stand, -6, side)
+             for s, side in (("", "lr"), ("_l", "l"), ("_r", "r"))}
+    cheer = shift_arm_tips(                             # sakrab quvonadi
+        lift_leg(lift_leg(stand, LEG_L, dy=3), LEG_R, dy=3), -7)
 
     frames = {
         "stand": stand,
@@ -193,14 +311,18 @@ def main():
         "walk2": stand,
         "walk3": lift_leg(stand, LEG_R),
         "blink": blink(stand),
+        "sleep": sleeping(stand),
         "fall": fall,
         "squash": squash(stand),
         # ish paytidagi qo'shimcha faoliyatlar
         "peck": shift_band(stand, HEAD_ROWS, 3),        # boshini egib "cho'qiydi"
-        "wave": shift_arm_tips(stand, -6),              # qo'llarini ko'taradi
-        "cheer": shift_arm_tips(                        # sakrab quvonadi
-            lift_leg(lift_leg(stand, LEG_L, dy=3), LEG_R, dy=3), -7),
+        "cheer": cheer,
+        # kulgan holat -- pet.py xursand paytda shu kadrlarga o'tadi
+        "happy_stand": smile(stand),
+        "happy_cheer": smile(cheer),
     }
+    frames.update(waves)
+    frames.update(("happy_" + n, smile(img)) for n, img in waves.items())
 
     frames = {name: pad(img) for name, img in frames.items()}
     # o'ylanib chayqalish -- bo'shliq qo'shilgandan keyin siljitiladi

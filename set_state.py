@@ -1,6 +1,6 @@
 """Claude Code hooklari uchun: pet holatini yozadi.
 
-Ishlatilishi:  pythonw set_state.py working|idle|waiting
+Ishlatilishi:  python set_state.py working|idle|waiting
 Hech qachon xato qaytarmaydi -- hookni to'xtatib qo'ymasligi kerak.
 """
 import json
@@ -8,10 +8,10 @@ import os
 import sys
 import time
 
-STATE_DIR = os.path.join(os.environ.get("TEMP", "/tmp"), "claude-pet")
-STATE_FILE = os.path.join(STATE_DIR, "state.json")
-
 try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from paths import STATE_DIR, STATE_FILE
+
     state = sys.argv[1] if len(sys.argv) > 1 else "idle"
     os.makedirs(STATE_DIR, exist_ok=True)
     tmp = STATE_FILE + ".tmp"
