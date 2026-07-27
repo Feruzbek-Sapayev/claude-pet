@@ -1,7 +1,7 @@
 # Claude desktop pet
 
-> Windows va macOS. macOS uchun alohida yo'riqnoma:
-> [macOS'da ishlatish](#macosda-ishlatish).
+> **Windows** va **macOS**. O'rnatish: [Windows'da](#windowsda) ·
+> [macOS'da](#macosda) · [macOS xususiyatlari](#macos-xususiyatlari)
 
 Ekran bo'ylab yuradigan Claude Code maskoti. Claude Code'ning holatiga qarab
 o'zini tutadi: ishlayotganda harakatlanadi va nima qilayotganini aytadi,
@@ -10,39 +10,61 @@ uloqtirilish, bosilish — ovoz ham chiqaradi.
 
 ## O'rnatish
 
-**Kerak bo'ladi:** Windows yoki macOS va Python 3.8+
-([python.org](https://python.org); Windows'da o'rnatishda «Add Python to PATH»
-katagini belgilang). Boshqa hech narsa kerak emas — kadrlar va ovozlar tayyor
-holda keladi, qo'shimcha kutubxona shart emas.
+Pet **Windows** va **macOS** da ishlaydi. Ikkalasida ham Python 3.8+ kerak,
+boshqa hech narsa emas — kadrlar va ovozlar tayyor holda keladi.
 
-**GitHub'dan:**
+Papkani olish (yoki ZIP faylni istalgan joyga yeching):
 
 ```bash
 git clone https://github.com/Feruzbek-Sapayev/claude-pet.git
 cd claude-pet
 ```
 
-so'ng o'rnatgichni ikki marta bosing va Claude Code'ni qayta ishga tushiring:
+### Windows'da
 
-| Tizim | Fayl |
-|---|---|
-| Windows | **`install.bat`** |
-| macOS | **`install.command`** |
+1. Python 3.8+ o'rnating — [python.org](https://python.org). O'rnatishda
+   **«Add Python to PATH»** katagini belgilang.
+2. **`install.bat`** ni ikki marta bosing.
+3. Claude Code'ni qayta ishga tushiring.
 
-**Yoki ZIP orqali:** faylni istalgan papkaga yeching (masalan
-`C:\claude-pet` yoki `~/claude-pet`), o'rnatgichni bosing, Claude Code'ni
-qayta ishga tushiring.
+### macOS'da
 
-Tamom. O'rnatgich uch ishni qiladi: Claude Code hooklarini qo'shadi, pet'ni
-tizim avtostartiga yozadi va uni ishga tushiradi.
+1. Python 3.8+ o'rnating. **Tkinter bilan birga kelgan nusxa kerak** —
+   [python.org](https://python.org) dan olingani eng ishonchli. Tekshirish:
+
+   ```bash
+   python3 -c "import tkinter; print(tkinter.TkVersion)"
+   ```
+
+   Raqam chiqsa (8.6 yoki undan yuqori) hammasi joyida. Xato chiqsa
+   python.org dan Python o'rnating — Homebrew nusxasiga qo'shimcha
+   `brew install python-tk` kerak bo'lishi mumkin.
+
+2. O'rnatgichni ishga tushiring — Finder'da **`install.command`** ni ikki
+   marta bosing, yoki terminalda:
+
+   ```bash
+   chmod +x install.command      # ZIP orqali olgan bo'lsangiz
+   ./install.command
+   ```
+
+3. Claude Code'ni qayta ishga tushiring.
+
+> **Gatekeeper.** Birinchi marta ochganda «tasdiqlanmagan dasturchi»
+> ogohlantirishi chiqishi mumkin. Faylga o'ng tugma → **Open** → yana
+> **Open**. Yoki umuman chetlab o'tib, terminalda `python3 install.py`.
+
+**Ikkinchi monitor** kerak bo'lsa (ixtiyoriy):
+`pip3 install pyobjc-framework-Cocoa`. Usiz pet faqat asosiy ekranda yuradi.
+
+### O'rnatgich nima qiladi
+
+Uch ish: Claude Code hooklarini qo'shadi, pet'ni tizim avtostartiga yozadi
+va uni ishga tushiradi.
 
 > Papkani keyinchalik ko'chirsangiz, yangi joyida o'rnatgichni qaytadan ishga
 > tushiring — yo'llar yangilanadi. Qayta o'rnatish xavfsiz: yozuvlar
 > takrorlanmaydi, yangilanadi.
-
-> macOS'da birinchi marta ochganda Gatekeeper ogohlantirishi chiqishi mumkin.
-> `install.command` ga o'ng tugma → **Open** → **Open** deng, yoki terminalda
-> `python3 install.py` ni ishlating.
 
 ### Nimalarga tegadi
 
@@ -57,6 +79,52 @@ tizim avtostartiga yozadi va uni ishga tushiradi.
 **`uninstall.bat`** (macOS'da **`uninstall.command`**) ni ishga tushiring — u
 faqat o'zi qo'shgan hooklarni va avtostartni olib tashlaydi, boshqa
 sozlamalaringizga tegmaydi. So'ng papkani o'chirsangiz bo'ladi.
+
+## macOS xususiyatlari
+
+O'rnatish yuqorida. Bu yerda — kundalik ishlatish va Windows'dan farqlari.
+
+| Ish | Buyruq |
+|---|---|
+| Qo'lda ishga tushirish | `./start-pet.command` yoki `python3 pet.py` |
+| Chiqish | pet'ga ikki barmoq bilan bosing → «Chiqish» |
+| O'chirish | `./uninstall.command` |
+| Avtostartni vaqtincha to'xtatish | `launchctl unload ~/Library/LaunchAgents/com.claude-pet.plist` |
+| Avtostartni qaytarish | `launchctl load ~/Library/LaunchAgents/com.claude-pet.plist` |
+
+O'ng tugma menyusi trackpad'da **ikki barmoq bilan bosish** yoki `Control` +
+bosish orqali ochiladi.
+
+### Windows'dan farqlari
+
+| Nima | Windows | macOS |
+|---|---|---|
+| Shaffof fon | oynadagi kalit rang ko'rinmas qilinadi, kadrlar `sprites/flat/` dan | oynaning o'zi shaffof, kadrlar alfa kanali bilan `sprites/` dan |
+| Ovoz | `winsound` | `afplay` |
+| Ekranlar | `EnumDisplayMonitors` | `NSScreen` (pyobjc) yoki faqat asosiy ekran |
+| Avtostart | Startup papkasidagi `.vbs` | `~/Library/LaunchAgents/com.claude-pet.plist` |
+| Holat fayli | `%TEMP%\claude-pet\` | `~/Library/Caches/claude-pet/` |
+| Shrift | Segoe UI | Helvetica Neue |
+
+Holat fayli macOS'da `TMPDIR` da emas, `Caches` da turadi: `TMPDIR` sessiyaga
+bog'langan bo'lishi mumkin va hook bilan pet uni har xil ko'rib qolardi.
+Yo'l `paths.py` da bir marta hisoblanadi.
+
+### macOS nosozliklari
+
+**Pet ko'rinmayapti** — terminaldan `python3 pet.py` ni ishlating va xatoni
+o'qing. Ko'p uchraydigani: Tkinter yo'q (o'rnatish bo'limidagi tekshiruvga
+qarang).
+
+**Pet fonida to'rtburchak qoladi** — oyna shaffofligi Tk versiyasiga bog'liq.
+`python3 -c "import tkinter; print(tkinter.TkVersion)"` 8.6 dan past bo'lsa
+python.org dan yangi Python o'rnating.
+
+**Faqat bitta ekranda yuradi** — `pip3 install pyobjc-framework-Cocoa`,
+so'ng pet'ni qayta ishga tushiring.
+
+**Ovoz chiqmayapti** — `/usr/bin/afplay` borligini tekshiring; menyudagi
+«Ovoz» belgisi yoqilganmi?
 
 ## Do'stingizga berish
 
@@ -343,89 +411,12 @@ Kattalikni o'zgartirsangiz sakrash balandliklarini ham mutanosib moslang
 (`pet.py` dagi `_do_hop`, `_act_cheer`, `_do_poke` ichidagi sonlar) va
 pufak shriftini (`Bubble.__init__` dagi `size`).
 
-## macOS'da ishlatish
-
-Pet Windows va macOS'da bir xil ishlaydi — farqi faqat ishga tushirish
-fayllarida va tizim bilan bog'lanish usulida.
-
-### Boshlash
-
-**Kerak bo'ladi:** macOS va Python 3.8+. Tkinter bilan birga kelgan nusxa
-kerak — [python.org](https://python.org) dan o'rnatilgani eng ishonchli.
-Tekshirish:
-
-```bash
-python3 -c "import tkinter; print(tkinter.TkVersion)"
-```
-
-Agar xato chiqsa, python.org dan Python o'rnating (Homebrew nusxasiga
-`brew install python-tk` kerak bo'lishi mumkin).
-
-So'ng papkada:
-
-```bash
-chmod +x install.command       # ZIP orqali olgan bo'lsangiz
-./install.command
-```
-
-yoki Finder'da **`install.command`** ni ikki marta bosing.
-
-> **Gatekeeper.** Birinchi marta ochganda «tasdiqlanmagan dasturchi»
-> ogohlantirishi chiqishi mumkin. Faylga o'ng tugma → **Open** → yana
-> **Open**. Yoki umuman chetlab o'tib, terminaldan `python3 install.py`
-> ni ishlating.
-
-O'rnatgandan keyin **Claude Code'ni qayta ishga tushiring** — hooklar faqat
-yangi sessiyada yuklanadi.
-
-### Kundalik ishlatish
-
-| Ish | Buyruq |
-|---|---|
-| Qo'lda ishga tushirish | `./start-pet.command` yoki `python3 pet.py` |
-| Chiqish | pet'ga ikki barmoq bilan bosing → «Chiqish» |
-| O'chirish | `./uninstall.command` |
-| Avtostartni vaqtincha to'xtatish | `launchctl unload ~/Library/LaunchAgents/com.claude-pet.plist` |
-| Avtostartni qaytarish | `launchctl load ~/Library/LaunchAgents/com.claude-pet.plist` |
-
-O'ng tugma menyusi trackpad'da **ikki barmoq bilan bosish** yoki `Control` +
-bosish orqali ochiladi.
-
-### Windows'dan farqlari
-
-| Nima | Windows | macOS |
-|---|---|---|
-| Shaffof fon | oynadagi kalit rang ko'rinmas qilinadi, kadrlar `sprites/flat/` dan | oynaning o'zi shaffof, kadrlar alfa kanali bilan `sprites/` dan |
-| Ovoz | `winsound` | `afplay` |
-| Ekranlar | `EnumDisplayMonitors` | `NSScreen` (pyobjc) yoki faqat asosiy ekran |
-| Avtostart | Startup papkasidagi `.vbs` | `~/Library/LaunchAgents/com.claude-pet.plist` |
-| Holat fayli | `%TEMP%\claude-pet\` | `~/Library/Caches/claude-pet/` |
-| Shrift | Segoe UI | Helvetica Neue |
-
-Holat fayli macOS'da `TMPDIR` da emas, `Caches` da turadi: `TMPDIR` sessiyaga
-bog'langan bo'lishi mumkin va hook bilan pet uni har xil ko'rib qolardi.
-Yo'l `paths.py` da bir marta hisoblanadi.
-
-### macOS nosozliklari
-
-**Pet ko'rinmayapti** — terminaldan `python3 pet.py` ni ishlating va xatoni
-o'qing. Ko'p uchraydigani: Tkinter yo'q (yuqoridagi tekshiruvga qarang).
-
-**Pet fonida to'rtburchak qoladi** — oyna shaffofligi Tk versiyasiga bog'liq.
-`python3 -c "import tkinter; print(tkinter.TkVersion)"` 8.6 dan past bo'lsa
-python.org dan yangi Python o'rnating.
-
-**Faqat bitta ekranda yuradi** — `pip3 install pyobjc-framework-Cocoa`,
-so'ng pet'ni qayta ishga tushiring.
-
-**Ovoz chiqmayapti** — `/usr/bin/afplay` borligini tekshiring; menyudagi
-«Ovoz» belgisi yoqilganmi?
-
 ## Nosozliklar
 
+macOS'ga xoslari yuqorida — [macOS nosozliklari](#macos-nosozliklari).
+
 **Pet ko'rinmayapti** — `start-pet.bat` ni qo'lda ishga tushiring. Xato chiqsa
-Python o'rnatilmagan yoki PATH da yo'q. (macOS uchun yuqoridagi bo'limga
-qarang.)
+Python o'rnatilmagan yoki PATH da yo'q.
 
 **Yuradi, lekin Claude'ning holatini bilmaydi** — Claude Code'ni qayta ishga
 tushirdingizmi? Hooklar faqat yangi sessiyada yuklanadi. Tekshirish uchun
